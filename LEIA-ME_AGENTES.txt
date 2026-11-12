@@ -1,0 +1,435 @@
+================================================================================
+MEI MEI DVD - GUIA, LOG DE COMPORTAMENTO E NOTAS PARA AGENTES
+================================================================================
+Projeto: C:\Users\250414\Downloads\projeto
+Linguagem: Java 24 (Swing/Java2D) + 1 DLL nativo em C (Win32)
+Plataforma: Windows 10/11 (o modo transparente so existe no Windows)
+Idioma do codigo e dos comentarios: portugues sem acentos (ASCII)
+
+Este ficheiro tem dois publicos:
+  - humanos: seccoes 1 a 7 (o que e, requisitos, compilar, executar, teclas)
+  - agentes de IA que vao dar manutencao: seccoes 8 a 15 (comportamento
+    interno, constantes para afinar, regras ja decididas, como testar)
+
+
+================================================================================
+1. O QUE O PROGRAMA FAZ
+================================================================================
+E um screensaver estilo "DVD logo": uma imagem (leopardo-das-neves mei mei)
+anda a saltar pelo ecra e vai quicando nas bordas.
+
+  - A imagem e sempre um PNG fornecido pelo utilizador (meimei.png). NAO ha
+    arte gerada por codigo nem recorte automatico do fundo.
+  - Pode correr de duas formas:
+      * TRANSPARENTE (default no Windows): a imagem flutua por cima do desktop
+        e de todas as janelas, sem fundo; o rato atravessa a overlay e pode-se
+        trabalhar normalmente por baixo.
+      * JANELA: janela sem moldura com fundo escuro (funciona sem DLL).
+  - Varios bouncers em simultaneo sao suportados (--n 10, etc.).
+  - Acertar num canto: explosao pequena no canto + explosao grande no meio do
+    ecra + nascem +5 bouncers a sair do canto (sem limite de total).
+  - Contador de cantos no HUD; log no stdout.
+
+
+================================================================================
+2. REQUISITOS PARA RODAR
+================================================================================
+So para USAR o programa (nada mais):
+  - Windows 10 ou 11
+  - Java (JRE ou JDK) 24 no PC. Detectado neste PC:
+      java version "24.0.2" 2025-07-15
+      JDK em: C:\Program Files\Java\jdk-24
+      javaw em: C:\Program Files\Java\jdk-24\bin\javaw.exe
+  - O ficheiro dist\meimei-dvd.jar (ja compilado no repositorio)
+  - O PNG, com o nome meimei.png na pasta do projeto
+
+Para COMPILAR (almac do acima):
+  - JDK (javac + jar). Os .bat procuram C:\Program Files\Java\jdk-24 e caem
+    no javac/jar do PATH se nao existir.
+  - Visual Studio 2022 (Community/Professional/Enterprise/BuildTools) com o
+    cl.exe, APENAS para o DLL do overlay transparente. Detectado neste PC:
+      C:\Program Files\Microsoft Visual Studio\2022\Community
+    Sem Visual Studio o build funciona na mesma: gera o .jar sem DLL e o
+    programa corre em modo janela.
+
+Nota JDK 24: chamar System.load a partir de um unnamed module gera WARNING.
+Os .bat ja passam --enable-native-access=ALL-UNNAMED. Em lancamentos a mao,
+usar essa opcao (no futuro a JVM vai bloquear o load sem ela).
+
+
+================================================================================
+3. ESTRUTURA DE FICHEIROS
+================================================================================
+  run.bat                  lancar 1 mei mei (usa meimei.png da pasta)
+  run-10.bat               lancar 10 mei meis (== run.bat --n 10)
+  build.bat                compila Java + DLL e faz dist\meimei-dvd.jar
+  build-native.bat         so compila o DLL (build\native\meimeioverlay.dll)
+  meimei.png               a imagem usada (trocar a vontade)
+  README.md                guia curto
+  LEIA-ME_AGENTES.txt      este ficheiro
+  dist\meimei-dvd.jar      artefacto final (inclui o DLL la dentro)
+  src\meimei\Dvd.java      aplicacao: janela/overlay, teclas, HUD, spawn
+  src\meimei\Bouncer.java  um sprite: fisica, salto, bounce, cor, rasto
+  src\meimei\Boom.java     explosoes (CANTO e CENTRAL)
+  src\meimei\Png.java      carregar PNG, redimensionar, pintar cores
+  src\meimei\Overlay.java  JNI para a overlay transparente
+  src\native\overlay.c     janela layered Win32 (UpdateLayeredWindow)
+  build\classes\           .class intermedios
+  build\native\            DLL intermedio
+
+
+================================================================================
+4. COMPILAR
+================================================================================
+  build.bat
+Saida esperada:
+  DLL: ok
+  OK: dist\meimei-dvd.jar
+Falhas possiveis:
+  "DLL: nao compilado - modo janela apenas"  -> sem Visual Studio, segue OK
+  "Falha na compilacao."                     -> erro de Java, ver acima no ecra
+
+O build.bat faz, por ordem:
+  1. limpa build\
+  2. chama build-native.bat (que chama vcvars64.bat e cl.exe)
+  3. javac -encoding UTF-8 -d build\classes src\meimei\*.java
+  4. jar --create --file dist\meimei-dvd.jar --main-class meimei.Dvd
+         -C build\classes . [-C build\native meimeioverlay.dll]
+
+O DLL e compilado com:
+  cl /nologo /O2 /MT /I %JAVA_HOME%\include /I %JAVA_HOME%\include\win32
+     src\native\overlay.c /link /DLL /OUT:meimeioverlay.dll user32.lib gdi32.lib
+
+Compilar so o DLL:
+  build-native.bat        -> "OK: build\native\meimeioverlay.dll"
+
+
+================================================================================
+5. EXECUTAR
+================================================================================
+  duplo clique run.bat            1 mei mei, transparente se houver DLL
+  duplo clique run-10.bat         10 mei meis
+  run.bat --janela                forcado em modo janela
+  run.bat --n 25                  25 mei meis
+
+A mao (equivalente):
+  & "C:\Program Files\Java\jdk-24\bin\java.exe" --enable-native-access=ALL-UNNAMED `
+      -jar dist\meimei-dvd.jar --png meimei.png --n 10
+
+Gravar o log para ficheiro (stdout + stderr):
+  & "C:\Program Files\Java\jdk-24\bin\java.exe" --enable-native-access=ALL-UNNAMED `
+      -jar dist\meimei-dvd.jar --png meimei.png > meiimei-log.txt 2>&1
+
+COMANDOS DE LINHA DE COMANDOS (todos)
+  --png <caminho>     usar outra imagem (tem prioridade sobre meimei.png local)
+  --n <num>           numero de bouncers no arranque (1..50, default 1)
+  --n=<num>           forma alternativa
+  --many <num>        sinonimo de --n
+  --dez | --10        atalho para --n 10
+  --janela | --window NAO usar a overlay transparente (fundo escuro)
+  --help | -h | /?    lista de comandos e teclas no stdout, e sai sem lancar
+
+Procura da imagem (Png.find, por ordem):
+  1) caminho de --png (via system property meimei.png)
+  2) meimei.png na pasta actual
+  3) meimei.png na pasta do .jar
+Se nao encontra: mensagem no stderr + dialog Swing e sai sem lancar.
+
+O DLL e procurado (Overlay.findDll, por ordem):
+  1) meimeioverlay.dll na pasta actual
+  2) meimeioverlay.dll na pasta do .jar
+  3) extraido de dentro do .jar para %TEMP%\meimei\meimeioverlay.dll
+Se nao ha DLL, ou o load falha, cai em modo janela sem crashar.
+
+
+================================================================================
+6. TECLAS
+================================================================================
+  F8          BLOQUEIA/LIBERTA todas as teclas (para escrever sem distracoes).
+              Enquanto bloqueado aparece placa vermelha "TECLAS BLOQUEADAS -
+              F8 para libertar" no topo esquerdo. Com bloqueio activo NEM Q
+              NEM ESC fecham o programa: so F8 liberta.
+  R           liga/desliga mudanca de cor a cada choque
+  T           liga/desliga rasto (trail)
+  + / -       velocidade x1.2 / /1.2 (limites 40..1400 px/s)
+  espaco      salto extra em todos
+  N           novo: nova posicao e direcao para todos
+  F           ecra inteiro / janela (so no modo janela)
+  Q ou ESC    sair
+  rato        no modo janela: arrastar move a janela; clique = salto
+              no modo transparente a janela e click-through, o rato nao faz nada
+
+No modo transparente nao ha janela focada, por isso as teclas sao lidas por
+polling de GetAsyncKeyState (Overlay.key) a cada frame. '+' e '-' usam os
+codigos virtuais do Windows 0xBB / 0xBD porque KeyEvent nao os tem.
+
+
+================================================================================
+7. LOG DA CONSOLA (stdout/stderr)
+================================================================================
+Linhas escritas pelo programa (grep-friendly):
+  [meimei] a usar <caminho abs> (<W>x<H>)        imagem carregada
+  [meimei] overlay transparente activo (<dll>)    DLL carregado, modo overlay
+  [meimei] modo transparente: N bouncer(s); Q ou ESC para sair
+  [meimei] sem meimeioverlay.dll -> modo janela com fundo escuro
+  [meimei] para o fundo transparente: build-native.bat e depois run.bat
+  [meimei] canto #<n> -> +5 (total <m>)           cada canto: quantos nasceram
+  [meimei] teclas BLOQUEADAS                     F8 premido (liga bloqueio)
+  [meimei] teclas livres                         F8 premido (desliga bloqueio)
+  Nao encontrei o meimei.png....                 (stderr) imagem em falta
+
+Exemplo de sequencia real:
+  [meimei] a usar C:\...\projeto\meimei.png (478x818)
+  [meimei] overlay transparente activo (C:\Users\<user>\AppData\Local\Temp\meimei\meimeioverlay.dll)
+  [meimei] modo transparente: 8 bouncer(s); Q ou ESC para sair
+  [meimei] canto #1 -> +5 (total 13)
+
+
+================================================================================
+8. LOG DE COMPORTAMENTO INTERNO (o que acontece, frame a frame)
+================================================================================
+ARRANQUE
+  1. main() le argumentos, define system property meimei.png se --png.
+  2. Png.find() localiza a imagem; Png.read() faz ImageIO.read.
+  3. Overlay.available() tenta o DLL; se falhar, modo janela.
+  4. new Dvd(png, n, overlay): cria n Bouncer. Com n>1 cada um recebe escala
+     aleatoria 0.6..1.3 (sprite com lado maior ~180*scale, minimo 24 px).
+     Com n==1 escala = 1.0.
+  5. show(): reset() a cada bouncer (posicao e direcao aleatorias, hue
+     aleatorio, jumpPhase aleatorio); inicia javax.swing.Timer a 1000/FPS ms.
+
+CADA FRAME (Dvd.tick)
+  1. se overlay: pollOverlayKeys() (F8 primeiro; se locked, para aqui).
+  2. dt = tempo real desde o frame anterior, limitado a 0.05 s (protege de
+     saltos quando a janela esta em minimizada/alt-Tab).
+  3. para cada bouncer: b.tick(dt, boundsW, boundsH, opts).
+  4. bouncers que deram canto => onCorner(): 2 explosoes + 5 novos bouncers.
+  5. booms.tick(dt); os que acabaram sao removidos.
+  6. pintar: paintOverlay() ou canvas.repaint().
+
+FISICA DE UM BOUNCER (Bouncer.tick)
+  - posicao += velocidade*dt
+  - deteccao de parede com o trajeto REAL (rawX/rawY) antes do clamp:
+      se cruzou a parede X, interpola-se o instante t do cruzamento e ve-se
+      yAt = fromY + (rawY-fromY)*t
+      e canto se yAt <= CORNER_TOL ou yAt >= maxY-CORNER_TOL
+      (simetrico para a parede Y)
+  - no choque: clamp a parede, invertida a componente, normalize(velocidade=
+    opts.speed), jumpPhase=0 (o bouncer da um salto a cada choque)
+  - cor: se opts.rainbow, hue += 90 (canto) ou += 31 (parede), mod 360
+  - rasto: lista com os ultimos trailMax=14 pontos, desenhados com alpha
+    descendente (0.16 no maximo)
+
+SALTO (efeito visual)
+  - hop = -jumpHeight*sin(pi*t); squash/stretch na escala; sombra no chao com
+    tamanho e opacidade proporcionalmente ao hop.
+
+CANTO (Dvd.onCorner)
+  1. corners++ (contador global)
+  2. Boom pequeno no canto (Kind.CORNER, reach=200)
+  3. Boom grande no centro do ecra (Kind.MIDDLE,
+     reach=min(boundsW,boundsH)*0.85, hue complementar +180)
+  4. +5 Bouncer novos na posicao do canto, com direcao aleatoria em volta da
+     direcao para o centro (+/- 0.8 rad), escala 0.55..1.2, hue aleatorio
+  5. sem LIMITE de total: o numero cresce indefinidamente
+  6. adaptSpeed(): FPS do Timer = 120 ate 20 bouncers, 90 ate 45, 60 ate 90,
+     45 ate 160, 30 acima. (Protege o CPU/ecra quando ha muitos.)
+
+EXPLOSOES (Boom)
+  Kind.CORNER  vida 1.0 s, 46 particulas, velocidade 70..450 px/s,
+               gravidade 340, arrasto 1.7/s, 1 onda ate 190 px, clarao central
+  Kind.MIDDLE  vida 1.9 s, 90 particulas, velocidade 2.6x maior,
+               gravidade 210, arrasto 1.15/s, 3 ondas (0.55/0.80/1.15 s) com
+               2. anel complementar, estrela de 22 raios, 2 glows radiais
+  Java2D NAO tem modo aditivo: o "brilho" e feito com RadialGradientPaint e
+  varias camadas translucidas por cima.
+
+PINTURA NO MODO TRANSPARENTE (Dvd.paintOverlay)
+  1. calcula o rectangulo UNIAO de: bounds de todos os bouncers (que include o
+     rasto) + bounds de todos os booms activos + rect da legenda (so quando ha
+     1 bouncer) + rect da placa de bloqueio (so quando locked)
+  2. clampado ao ecra virtual; cria um BufferedImage ARGB desse tamanho
+  3. desenha tudo em coordenadas de ecra com translate(-left,-top)
+  4. Overlay.paint(img, screen[0]+left, screen[1]+top) => converte para ARGB
+     premultiplicado e chama UpdateLayeredWindow(ULW_ALPHA)
+  IMPORTANTE: qualquer elemento novo que se desenhe FORA do rect dos bouncers
+  (placas, legendas, setas...) tem de ser incluido na uniao do ponto 1, senao
+  e cortado na borda da imagem. Foi exactamente assim que a legenda ficou
+  cortada uma vez.
+
+PINTURA NO MODO JANELA
+  Canvas.paintComponent: bouncers, booms, e HUD (linha de ajuda em baixo,
+  contador de cantos em cima a direita, placa de bloqueio se locked).
+
+LEGENDA DE TECLAS (so aparece no modo transparente com 1 bouncer)
+  - placa escura com o texto HINT_KEYS + "<n> cantos"
+  - largura medida com FontMetrics reais (HINT_FONT 13 / HINT_BOLD 14): a
+    placa e sempre maior que o texto, nunca e cortada
+  - fica centrada por baixo do bouncer; e bloqueada para dentro do ecra;
+    se nao couber em baixo, vai para cima do bouncer
+  - opacidade 1.0 ate HINT_SECONDS=9 s, depois 0.45
+
+
+================================================================================
+9. CONSTANTES PARA AFINAR (todas num sitio)
+================================================================================
+src\meimei\Bouncer.java
+  Options.speed        240     px/segundo base
+  Options.jumpHeight   42      altura do salto, px
+  Options.jumpPeriod   0.75    duracao de um salto, s
+  Options.trailMax     14      pontos do rasto
+  CORNER_TOL           8       dificuldade do canto (px) - ver 10.
+  180 * scale          -       lado maior do sprite, px (minimo 24)
+
+src\meimei\Dvd.java
+  FPS                  120     ritmo base do Timer
+  PER_CORNER           5       bouncers que nascem por canto
+  speed clamp          40..1400 (setSpeed)
+  clamp de --n         1..50 apenas no argumento (o runtime nao tem limite)
+  HINT_SECONDS         9       legenda forte ate aqui, depois esmaece
+  HINT_FONT/BOLD       13/14   tamanhos do texto da legenda
+  BADGE_*              10,10,330,34 + BADGE_TEXT   placa de bloqueio
+  adaptSpeed         n>20:90  n>45:60  n>90:45  n>160:30
+
+src\meimei\Boom.java
+  PARTICLES 46 | SPARKS 90 | RAYS 22 | vida 1.0/1.9 s | reach por chamada
+
+src\meimei\Png.java
+  scale(src,max)  mantem proporcao, interpolacao bilinear
+
+
+================================================================================
+10. MEDICOES CONHECIDAS (para nao adivinhar)
+================================================================================
+Cantos por minuto (simulacao 1536x864, speed 240, dt=1/120, 40 corridas):
+  1 bouncer  -> 0.25 /min   (~1 a cada 4 minutos)
+  5 bouncers -> 1.4  /min
+  10 bouncers-> 2.9  /min
+Como cada canto cria +5 bouncers, a taxa composta cresce sozinha (o jogo
+"acelera" a medida que aparecem cantos).
+
+Nota historica importante: a primeira versao exigia tocar nas DUAS paredes no
+MESMO frame, o que a ~2 px/frame dava ~1/4000 por salto - na pratica nunca
+acontecia. A deteccao actual mede o instante interpolado do cruzamento. NAO
+voltar atras nisto.
+
+Legenda: placa medida 472x60 px para o texto actual; o texto acaba 11 px antes
+da borda direita da placa. Verificado nos 4 casos-limite (centro, direita,
+baixo, canto) - sempre dentro do ecra.
+
+
+================================================================================
+11. REGRAS JA DECIDIDAS PELO UTILIZADOR (nao reverter)
+================================================================================
+  1. O programa usa o PNG TAL E QUAL. NAO implementar recorte/remocao automatica
+     de fundo (foi pedida, feita, e removida por pedido explicito).
+  2. NAO ha limite maximo de bouncers depois dos cantos (+5 por canto para
+     sempre). Nao adicionar cap sem pedir.
+  3. O canto tem de ser DIFICIL (CORNER_TOL pequena). Nao facilitar ate o
+     utilizador pedir.
+  4. A legenda por baixo da imagem tem de caber toda: qualquer alteracao ao
+     texto ou a fonte implica aumentar o rectangulo na uniao do paintOverlay.
+  5. Manter ASCII sem acentos no codigo e comentarios (consistencia).
+  6. Nao usar AlphaComposite aditivo: nao existe em Java2D. Brilho = gradientes
+     radiais translucidos.
+  7. Preservar o modo janela como fallback: tudo tem de funcionar sem DLL.
+
+
+================================================================================
+12. COMO TESTAR ALTERACOES (receita)
+================================================================================
+a) Compilar sempre:
+     cmd /c build.bat          -> "DLL: ok" / "OK: dist\meimei-dvd.jar"
+
+b) Correr com log para ficheiro e verificar ausencia de stacktraces:
+     java --enable-native-access=ALL-UNNAMED -jar dist\meimei-dvd.jar
+        --png meimei.png --n 8 > log.txt 2>&1
+   (Start-Process com -RedirectStandardError e bom truque para apanhar
+    exceptions de EDT sem consola.)
+
+c) Capturar o ecra para ver o resultado (a overlay esta sempre a frente, por
+   isso ve-se nas capturas; no modo janela a janela pode ficar atras de outra):
+     Add-Type -AssemblyName System.Drawing,System.Windows.Forms
+     $b=[System.Windows.Forms.SystemInformation]::VirtualScreen
+     $bmp=New-Object System.Drawing.Bitmap($b.Width,$b.Height)
+     $g=[System.Drawing.Graphics]::FromImage($bmp)
+     $g.CopyFromScreen($b.X,$b.Y,0,0,$bmp.Size)
+     $bmp.Save("$(Get-Location)\check.png")
+
+d) Testes de fisica/legenda sem GUI: criar um .java temporario em package
+   meimei, compilar com -cp build\classes e correr. Padroes ja usados:
+     - simulador de cantos: criar Bouncer, reset(), chamar tick(dt,...) em
+       loop e contar cantos por minuto
+     - render da legenda: Dvd via reflexao (metodo privado hintBox/drawHint),
+       desenhar para BufferedImage e medir onde acaba o texto
+   Apagar estes ficheiros depois (nao fazem parte do produto).
+
+e) Para forcar cantos em testes visuais: compiar uma copia em tools\ com
+   CORNER_TOL temporariamente grande (ex.: 90). NUNCA commitar esse valor.
+
+f) Terminar instancias para o DLL deixar de estar preso (senao o jar nao e
+   reescrito): Get-Process java,javaw | Stop-Process -Force
+
+
+================================================================================
+13. LIMITACOES E ARMADILHAS CONHECIDAS
+================================================================================
+  - Java/Swing nao consegue transparencia por pixel: por isso existe o DLL
+    (UpdateLayeredWindow + ULW_ALPHA). setOpacity() escurece a janela toda.
+  - Overlay e click-through (WS_EX_TRANSPARENT): nao ha eventos de rato la.
+    Por isso as teclas em overlay sao polling de GetAsyncKeyState, o que
+    tambem quer dizer que os atalhos sao GLOBAIS - dai o F8 de bloqueio.
+  - Overlay cobre o ecra VIRTUAL (GetSystemMetrics SM_*VIRTUALSCREEN): em
+    multi-monitor as coordenadas podem ser negativas; o codigo usa
+    screen[0]/screen[1] como offset da janela nativa.
+  - UpdateLayeredWindow exige ARGB PREMULTIPLICADO - Overlay.paint trata disso.
+  - Se o processo anterior nao for morto, o DLL em %TEMP%\meimei fica preso e
+    o build nao consegue reescrever dist\meimei-dvd.jar (FileSystemException).
+  - BufferedImage.getRGB/setRGB por pixel e lento para imagens grandes; o tint
+    so e recalculado quando muda a cor (tintDirty), nao a cada frame.
+  - Com muitos bouncers (centenas) a area pintada passa a ser quase o ecra
+    inteiro; adaptSpeed reduz FPS, mas o custo por frame cresce linearmente.
+  - Set-Content -Encoding UTF8 no Windows PowerShell escreve BOM e parte o
+    javac ("illegal character: '\ufeff'"). Usar
+    [System.IO.File]::WriteAllText com UTF8Encoding(false).
+
+
+================================================================================
+14. IDEIAS DE TRABALHO FUTURO (para agentes)
+================================================================================
+  - Som no canto/explosao (javax.sound.sampled; precisa de ficheiro .wav)
+  - Placar persistente (ficheiro no %APPDATA%) com cantos e total de bouncers
+  - Opcao --monitor 1/2 para escolher o monitor em vez do ecra virtual todo
+  - Modo "chuva": --n grande com escalas muito pequenas
+  - Trailing com blur real (hoje sao copias translucidas)
+  - Testes de verdade (JUnit) em vez dos harnesses temporarios
+  - Reduzir alocacoes por frame (o BufferedImage da overlay e novo a cada
+    frame quando muda o tamanho do rectangulo; reutilizar buffer)
+
+
+================================================================================
+15. HISTORICO DE DESENVOLVIMENTO (ordem em que foi feito)
+================================================================================
+ v1  Sprite desenhado em Java2D (procedural) + bounce estilo DVD + HUD.
+ v2  Removida toda a arte procedural: passou a exigir PNG do utilizador.
+     (Pedido: "so quero que o programa funcione com o png e nada mais")
+ v3  Overlay transparente nativa: src\native\overlay.c + Overlay.java
+     (layered, click-through, topmost, UpdateLayeredWindow ULW_ALPHA).
+     DLL empacotado dentro do .jar e extraido para %TEMP% em runtime.
+ v4  Refactor: fisica isolada em Bouncer.java; suporte a N bouncers;
+     run-10.bat e --n.
+ v5  Explosoes (Boom.java) e spawn de +5 por canto, sem limite; explosao
+     central separada da de canto.
+ v6  Explosao central aumentada e diferenciada (3 ondas, 22 raios, glows);
+     canto medido geometricamente (CORNER_TOL), porque a versao "mesmo frame"
+     era praticamente imposible.
+ v7  F8 para bloquear/desbloquear atalhos (para poder escrever), com placa no
+     ecra; placa de bloqueio com largura medida.
+ v8  --enable-native-access=ALL-UNNAMED nos lancadores (JDK 24).
+ v9  Legenda por baixo da imagem: largura medida com FontMetrics reais,
+     incluida na uniao da area pintada, clampada ao ecra e vira para cima
+     quando nao cabe - corrigido o corte do texto.
+
+================================================================================
+FIM
+================================================================================

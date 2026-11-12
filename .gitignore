@@ -1,0 +1,19 @@
+# artefactos gerados pelo build.bat (recompilam-se com build.bat)
+build/
+dist/
+
+# ficheiros temporarios de teste / capturas de ecra
+tools/
+*.log
+log.txt
+check.png
+hs_err_pid*.log
+replay_pid*.log
+
+# pastas de editores
+.idea/
+.vscode/
+*.iml
+
+# config local do agente
+opencode.json
