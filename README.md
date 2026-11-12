@@ -4,6 +4,19 @@ A imagem do PNG anda a saltar pelo ecra e quica nas bordas, como o simbolo do
 DVD. **No Windows pode flutuar por cima do desktop e das janelas, sem fundo**
 (vese o que esta por tras, e o rato atravessa a overlay).
 
+## Descarregar e correr (Windows, sem compilar)
+
+**[Ultima versao: `meimei-dvd-1.0.0-windows-x64.zip`](https://github.com/fstudent67/meimei-dvd/releases/latest)**
+(~26 MB) - descompacta e faz duplo clique em `meimei-dvd.exe`. Vem com a JVM
+la dentro, portanto **nao precisas de ter Java instalado** nem de compilar nada.
+
+* Se o SmartScreen avisar ("o Windows protegeu o teu PC"): *Mais informacoes* ->
+  *Executar mesmo assim*. Acontece so na primeira vez, porque o executavel nao
+  esta assinado digitalmente.
+* Para trocar a imagem, substitui o `meimei.png` que esta **ao lado do
+  `meimei-dvd.exe`**.
+* O mesmo release tem o `meimei-dvd.jar` solto, para quem ja tem Java 24.
+
 ## Usar
 
 | queres | o que fazer |
@@ -30,12 +43,18 @@ teclas so aparece quando ha um so (para nao poluir o ecra).
 ```
 build.bat            compila tudo (Java + DLL) e gera dist\meimei-dvd.jar
 build-native.bat     so compila o DLL do overlay transparente
+package.bat          gera o .exe com JVM embutida + dist\meimei-dvd-1.0.0-windows-x64.zip
 ```
 
 O `build-native.bat` usa o `cl.exe` do Visual Studio 2022 (encontra-o
 automaticamente) e o `jni.h` do JDK em `C:\Program Files\Java\jdk-24`.
 Se nao houver Visual Studio, o `build.bat` continua a funcionar: gera o .jar
 sem o DLL e o programa corre no modo janela.
+
+O `package.bat` chama o `build.bat`, faz `jlink` de um runtime minimo
+(so `java.desktop`) e `jpackage --type app-image`, e mete o `meimei.png` e um
+`LEIA-ME.txt` ao lado do `.exe`. Precisa do JDK 24; nao precisa do
+Visual Studio, e o zip resultante (~26 MB) e o que esta nos Releases.
 
 ## Teclas
 
@@ -111,8 +130,11 @@ src/meimei/Overlay.java    JNI para a overlay transparente
 src/native/overlay.c       janela layered do Windows (UpdateLayeredWindow)
 LEIA-ME_AGENTES.txt        guia completo + log de comportamento (para humanos
                            e para agentes de IA que deem manutencao)
+LEIA-ME_PACOTE.txt         texto que vai dentro do zip para o utilizador final
 build.bat                  compila e gera dist\meimei-dvd.jar
 build-native.bat           compila o DLL do overlay
+package.bat                gera o .exe com JVM embutida + zip dos Releases
+assets/meimei.ico          icone do meimei-dvd.exe (gerado do meimei.png)
 run.bat                    1 mei mei
 run-10.bat                 10 mei meis
 meimei.png              <-- troca este ficheiro pela tua imagem

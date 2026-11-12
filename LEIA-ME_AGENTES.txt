@@ -64,9 +64,13 @@ usar essa opcao (no futuro a JVM vai bloquear o load sem ela).
   run-10.bat               lancar 10 mei meis (== run.bat --n 10)
   build.bat                compila Java + DLL e faz dist\meimei-dvd.jar
   build-native.bat         so compila o DLL (build\native\meimeioverlay.dll)
+  package.bat              .exe com JVM embutida + zip para os Releases
   meimei.png               a imagem usada (trocar a vontade)
   README.md                guia curto
   LEIA-ME_AGENTES.txt      este ficheiro
+  LEIA-ME_PACOTE.txt       texto que o package.bat mete dentro do zip
+  assets\meimei.ico        icone do executavel (gerado a partir do meimei.png)
+  .gitignore               build\, dist\, tools\, opencode.json ficam fora do git
   dist\meimei-dvd.jar      artefacto final (inclui o DLL la dentro)
   src\meimei\Dvd.java      aplicacao: janela/overlay, teclas, HUD, spawn
   src\meimei\Bouncer.java  um sprite: fisica, salto, bounce, cor, rasto
@@ -76,6 +80,8 @@ usar essa opcao (no futuro a JVM vai bloquear o load sem ela).
   src\native\overlay.c     janela layered Win32 (UpdateLayeredWindow)
   build\classes\           .class intermedios
   build\native\            DLL intermedio
+  build\runtime\           JRE minima feita pelo jlink (so java.desktop)
+  dist\pkg\meimei-dvd\     app-image: meimei-dvd.exe + runtime\ + app\
 
 
 ================================================================================
@@ -102,6 +108,29 @@ O DLL e compilado com:
 
 Compilar so o DLL:
   build-native.bat        -> "OK: build\native\meimeioverlay.dll"
+
+EMPACOTAR PARA O PUBLICO (package.bat)
+  Faz o build.bat, depois:
+    jlink --add-modules java.desktop --strip-debug --no-man-pages
+          --no-header-files --output build\runtime
+    jpackage --type app-image --name meimei-dvd --app-version 1.0.0
+             --input build\in --main-jar meimei-dvd.jar --main-class meimei.Dvd
+             --runtime-image build\runtime --icon assets\meimei.ico
+             --java-options "--enable-native-access=ALL-UNNAMED" --dest dist\pkg
+  copia meimei.png para dist\pkg\meimei-dvd\ (ao lado do .exe, para o
+  utilizador poder trocar a imagem) e para dist\pkg\meimei-dvd\app\ (la do
+  .jar, Png.find() tambem procura ali), copia LEIA-ME_PACOTE.txt como
+  LEIA-ME.txt, e compacta com tar:
+    tar -a -c -f dist\meimei-dvd-1.0.0-windows-x64.zip -C dist\pkg meimei-dvd
+  Saida esperada:  OK: dist\meimei-dvd-1.0.0-windows-x64.zip (26197680 bytes)
+  Nota: o .exe nao precisa de Java instalado; o --java-options ja la vai
+  dentro do meimei-dvd.cfg, por isso lancadores a mao a partir do .jar
+  precisam de passar a opcao. SmartScreen queixa-se por o .exe nao estar
+  assinado - e normal, nao e bug.
+  Publicar: gh release create v<X.Y.Z> --title ... --notes-file <ficheiro>
+            dist\meimei-dvd-<versao>-windows-x64.zip dist\meimei-dvd.jar
+  (com --notes-file em vez de --notes: o texto com [] e {} faz o gh dar
+   "no matches found").
 
 
 ================================================================================
@@ -333,6 +362,11 @@ baixo, canto) - sempre dentro do ecra.
   6. Nao usar AlphaComposite aditivo: nao existe em Java2D. Brilho = gradientes
      radiais translucidos.
   7. Preservar o modo janela como fallback: tudo tem de funcionar sem DLL.
+  8. Artefactos nao vao para o git (build\, dist\, tools\ estao no .gitignore).
+     O .jar e o zip publicam-se como GitHub Release, nunca como commit.
+  9. A versao do pacote vive em package.bat (set "VER=1.0.0"). Ao mudar a
+     versao, actualizar o README (link e nome do zip) e criar o tag/Release
+     com o mesmo numero.
 
 
 ================================================================================
@@ -429,6 +463,16 @@ f) Terminar instancias para o DLL deixar de estar preso (senao o jar nao e
  v9  Legenda por baixo da imagem: largura medida com FontMetrics reais,
      incluida na uniao da area pintada, clampada ao ecra e vira para cima
      quando nao cabe - corrigido o corte do texto.
+ v10 Git: repo iniciado (branch main), .gitignore a excluir build\, dist\,
+     tools\ e opencode.json; publicado em
+     https://github.com/fstudent67/meimei-dvd (publico, meimei.png incluido).
+     Autor do commit: fstudent67 + email noreply (so neste repo, via
+     git config user.name/user.email sem --global).
+ v11 Package para o publico: package.bat (jlink + jpackage app-image) gera
+     dist\pkg\meimei-dvd\meimei-dvd.exe com JRE dentro + zip de ~26 MB,
+     publicado no Release v1.0.0 com o .jar ao lado. Icone do .exe em
+     assets\meimei.ico. Testado: o .exe corre sem Java instalado e mantem o
+     modo transparente (o DLL e extraido do .jar para %TEMP%\meimei).
 
 ================================================================================
 FIM

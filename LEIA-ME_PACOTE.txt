@@ -1,0 +1,39 @@
+mei mei DVD - versao para Windows (nao precisa de Java instalado)
+=================================================================
+
+ARRANCAR
+  1. descompacta este zip para uma pasta qualquer (ex.: C:\meimei)
+  2. faz duplo clique em meimei-dvd.exe
+
+Se o Windows avisar "o Windows protegeu o teu PC" (SmartScreen, porque o
+executavel nao esta assinado): clica em "Mais informacoes" e depois em
+"Executar mesmo assim". So acontece na primeira vez.
+
+TROCAR A IMAGEM
+  Substitui o ficheiro meimei.png que esta AO LADO do meimei-dvd.exe
+  por outro PNG teu, com o mesmo nome. Nao e preciso recompilar nada.
+
+TECLAS
+  F8     bloqueia/liberta as teclas (para poderes escrever sem atalhos a
+         serem apanhados) - enquanto bloqueado aparece uma placa vermelha
+  R      liga/desliga mudanca de cor a cada choque
+  T      liga/desliga rasto
+  + / -  mais / menos velocidade
+  espaco salto extra
+  N      nova direcao e posicao
+  F      ecra inteiro / janela (so no modo janela)
+  Q ou ESC  sair
+
+O QUE ACONTECE
+  A imagem salta pelo ecra por cima de tudo, sem fundo, e o rato atravessa-a.
+  Acertar num CANTO: explosao no canto + explosao grande no meio do ecra
+  e nascem +5 imagens (sem limite). e dificil de proposito.
+
+MODOS
+  Por cima do desktop (default): a imagem flutua sem fundo.
+  Se por qualquer razao o overlay nao funcionar, abre-se uma janela escura
+  (funciona na mesma).
+
+Se quiseres compilar tu proprio, ou saber como o programa funciona por
+dentro, ve o codigo e o LEIA-ME_AGENTES.txt em:
+  https://github.com/fstudent67/meimei-dvd
