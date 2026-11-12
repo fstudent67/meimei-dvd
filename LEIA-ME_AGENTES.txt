@@ -426,6 +426,11 @@ f) Terminar instancias para o DLL deixar de estar preso (senao o jar nao e
   - Set-Content -Encoding UTF8 no Windows PowerShell escreve BOM e parte o
     javac ("illegal character: '\ufeff'"). Usar
     [System.IO.File]::WriteAllText com UTF8Encoding(false).
+  - O primeiro `git push` pode ficar pendurado sem dizer nada: e o Git
+    Credential Manager a pedir interactivamente. Resolver com
+    `gh auth setup-git` (escreve credential."https://github.com".helper a usar
+    `gh auth git-credential`) e, em scripts,
+    `git -c credential.interactive=false push`.
 
 
 ================================================================================
